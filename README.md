@@ -1,17 +1,53 @@
 # Portfolio Analyzer
 
-A comprehensive portfolio analysis application that helps users analyze their investment portfolios through file uploads and data processing. The application consists of a Node.js backend service for file handling and validation.
+An event-based microservices application for analyzing investment portfolios through file uploads, data parsing, and AI-powered analysis.
 
-## 🏗️ Project Architecture
+## 🏗️ Architecture
+
+The system consists of 4 microservices communicating through a message queue:
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐      ┌──────────────┐
+│ Node Service│ ───> │ Message Queue│ ───> │Python Worker│ ───> │ AI Pipeline  │
+│ (HTTP API)  │      │   (Broker)   │      │  (Parser)   │      │ (LangChain)  │
+└─────────────┘      └──────────────┘      └─────────────┘      └──────────────┘
+       │                     │                     │                     │
+       └─────────────────────┴─────────────────────┴─────────────────────┘
+                              │
+                        ┌─────▼─────┐
+                        │  Docker   │
+                        │  Volume   │
+                        │ (Storage) │
+                        └───────────┘
+```
+
+### Data Flow
+
+1. **File Upload** → User uploads portfolio files (CSV/XLSX) via REST API
+2. **Storage** → Files stored in Docker volume with unique file IDs
+3. **Message Queue** → Node service publishes file IDs to message broker
+4. **Python Worker** → Consumes messages, parses files, validates data
+5. **AI Pipeline** → Processes parsed data using LangChain for analysis
+6. **Results** → Analyzed data stored and accessible via API
+
+## 📦 Project Structure
 
 ```
 portfolio-analyzer/
-├── node-service/           # Backend file upload service
-│   ├── src/               # Source code
-│   ├── tests/             # Test suite
-│   ├── uploads/           # Uploaded files storage
-│   └── README.md          # Service-specific documentation
-└── README.md              # This file
+├── node-service/          # HTTP server (TypeScript + Bun)
+│   ├── src/
+│   │   ├── routes/       # API endpoints
+│   │   ├── utils/        # Validation utilities
+│   │   ├── types/        # TypeScript definitions
+│   │   └── index.ts      # Entry point
+│   └── tests/            # Test suite
+├── python-worker/         # File parser service (Python)
+│   ├── src/
+│   │   ├── parsers/      # Portfolio parser
+│   │   ├── ai_pipeline/  # LangChain integration (planned)
+│   │   └── utils/        # Logger utilities
+│   └── requirements.txt
+└── project_architecture.md
 ```
 
 ## 🚀 Quick Start
@@ -19,7 +55,8 @@ portfolio-analyzer/
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (recommended) or Node.js 18+
-- Git
+- Python 3.8+
+- Docker (for shared storage and message queue)
 
 ### Installation
 
@@ -30,64 +67,68 @@ portfolio-analyzer/
    cd portfolio-analyzer
    ```
 
-2. **Install dependencies**
+2. **Setup Node Service**
 
    ```bash
    cd node-service
    bun install
    ```
 
-3. **Start the development server**
+3. **Setup Python Worker**
+
    ```bash
-   bun run dev
+   cd python-worker
+   pip install -r requirements.txt
    ```
 
-The service will be available at `http://localhost:3000`
+4. **Start Node Service**
+   ```bash
+   cd node-service
+   bun run dev
+   ```
+   Service runs at `http://localhost:3000`
 
-## 📋 Services
+## 📋 Current Implementation Status
 
-### Node Service - File Upload & Validation
+### ✅ Node Service (Implemented)
 
-The core backend service that handles file uploads and validation for portfolio data.
+**Status**: Fully functional file upload service
 
-**Location**: `./node-service/`
+**Features**:
 
-**Key Features**:
-
-- ✅ **Multiple File Upload**: Support for CSV and XLSX files
-- ✅ **File Validation**: Strict type and size validation
-- ✅ **Secure Storage**: UUID-based file naming
-- ✅ **Comprehensive Testing**: 35 tests with 100% pass rate
-- ✅ **TypeScript Support**: Full type safety
-- ✅ **Error Handling**: Detailed error responses
+- Multiple file upload (CSV, XLSX)
+- File validation (type, size)
+- UUID-based file naming
+- Comprehensive test suite (35 tests)
+- TypeScript with full type safety
 
 **API Endpoints**:
 
 - `POST /api/files/upload` - Upload portfolio files
-- `GET /api/files/download/:filename` - Download files
-- `GET /api/files/list` - List uploaded files
+- `GET /health` - Health check
+- `GET /api/files/download/:filename` - Download files (placeholder)
+- `GET /api/files/list` - List files (placeholder)
 
-**Supported File Types**:
+**File Limits**:
 
-- CSV files (`.csv`)
-- Excel files (`.xlsx`, `.xls`)
-- Maximum file size: 10MB per file
-- Maximum files per request: 10
+- Max file size: 10MB per file
+- Max files per request: 10
+- Supported formats: `.csv`, `.xlsx`, `.xls`
 
-**Example Usage**:
+**Example Request**:
 
 ```bash
-# Upload a portfolio file
 curl -X POST http://localhost:3000/api/files/upload \
-  -F "files=@portfolio.csv"
+  -F "files=@portfolio.csv" \
+  -F "files=@portfolio2.xlsx"
 ```
 
 **Response**:
 
 ```json
 {
-  "message": "Processed 1 files",
-  "successCount": 1,
+  "message": "Processed 2 files",
+  "successCount": 2,
   "errorCount": 0,
   "uploadedFiles": [
     {
@@ -103,232 +144,186 @@ curl -X POST http://localhost:3000/api/files/upload \
 }
 ```
 
-For detailed documentation, see [node-service/README.md](./node-service/README.md)
+### 🔄 Python Worker (In Progress)
 
-## 🧪 Testing
+**Status**: Basic structure implemented, not yet integrated
 
-### Running Tests
+**Features**:
 
-```bash
-cd node-service
-bun test                    # Run all tests
-bun run test:watch         # Run tests in watch mode
-bun run test:coverage      # Run tests with coverage
-```
+- Portfolio parser using pandas
+- Excel/CSV file parsing
+- Data validation utilities
+- Logger setup
 
-### Test Coverage
+**Pending**:
 
-- **Unit Tests**: 24 tests for validation utilities
-- **Integration Tests**: 11 tests for API endpoints
-- **Total Coverage**: 35 tests with 100% pass rate
+- Message queue integration
+- Docker volume file access
+- Integration with Node service
 
-## 🔧 Development
+### ⏳ AI Pipeline (Planned)
 
-### Project Structure
+**Status**: Not yet implemented
 
-```
-portfolio-analyzer/
-├── node-service/              # Backend service
-│   ├── src/
-│   │   ├── routes/           # API route handlers
-│   │   ├── utils/            # Utility functions
-│   │   ├── types/            # TypeScript definitions
-│   │   └── index.ts          # Application entry point
-│   ├── tests/                # Test suite
-│   │   ├── routes/           # Integration tests
-│   │   ├── utils/            # Unit tests
-│   │   ├── helpers/          # Test utilities
-│   │   └── setup.ts          # Test configuration
-│   ├── uploads/              # File storage
-│   ├── package.json          # Dependencies
-│   ├── jest.config.js        # Test configuration
-│   └── README.md             # Service documentation
-└── README.md                 # Project overview
-```
+**Planned Features**:
 
-### Technology Stack
+- LangChain integration
+- Portfolio analysis algorithms
+- Key insights generation
+- Result storage
+
+### ⏳ Message Queue (Planned)
+
+**Status**: Not yet implemented
+
+**Planned**: Local message broker (RabbitMQ/Redis) for service orchestration
+
+## 🛠️ Technology Stack
+
+### Node Service
 
 - **Runtime**: Bun (with Node.js compatibility)
 - **Language**: TypeScript
 - **Framework**: Express.js
 - **File Handling**: Multer
 - **Testing**: Jest + Supertest
-- **Validation**: Custom validation utilities
 
-### Key Dependencies
+### Python Worker
+
+- **Language**: Python 3.8+
+- **Data Processing**: Pandas
+- **Excel Support**: openpyxl
+
+### Planned
+
+- **Message Queue**: RabbitMQ or Redis
+- **AI Framework**: LangChain
+- **Containerization**: Docker Compose
+
+## 🧪 Testing
+
+### Node Service Tests
+
+```bash
+cd node-service
+bun test                    # Run all tests
+bun run test:watch         # Watch mode
+bun run test:coverage      # Coverage report
+```
+
+**Test Coverage**:
+
+- 24 unit tests (validation utilities)
+- 11 integration tests (API endpoints)
+- 100% pass rate
+
+## 📡 API Reference
+
+### Upload Files
+
+**Endpoint**: `POST /api/files/upload`
+
+**Request**:
+
+- Content-Type: `multipart/form-data`
+- Field name: `files` (array)
+- Max files: 10
+- Max size: 10MB per file
+
+**Response**: `200 OK`
 
 ```json
 {
-  "dependencies": {
-    "express": "^5.1.0",
-    "multer": "^1.4.5-lts.1",
-    "uuid": "^13.0.0"
-  },
-  "devDependencies": {
-    "jest": "^30.2.0",
-    "supertest": "^7.1.4",
-    "typescript": "^5.9.3"
-  }
+  "message": "Processed N files",
+  "successCount": number,
+  "errorCount": number,
+  "uploadedFiles": UploadedFileInfo[],
+  "errors": FileUploadError[],
+  "timestamp": string
 }
 ```
 
-## 🔒 Security Features
+### Health Check
+
+**Endpoint**: `GET /health`
+
+**Response**: `200 OK`
+
+```json
+{
+  "status": "OK",
+  "uptime": number,
+  "timestamp": string
+}
+```
+
+## 🔒 Security & Validation
 
 - **File Type Validation**: Strict MIME type and extension checking
-- **File Size Limits**: Configurable size restrictions
+- **File Size Limits**: 10MB per file maximum
 - **Unique File Naming**: UUID-based naming prevents conflicts
 - **Input Sanitization**: Proper handling of file metadata
 - **Error Handling**: No sensitive information in error messages
 
-## 📊 Performance
+## 📝 Planned Endpoints
 
-- **Memory Efficient**: Files processed in memory for validation
-- **Scalable**: Handles multiple concurrent uploads
-- **Fast Validation**: Optimized file type checking
-- **Configurable Limits**: Adjustable file size and count limits
+According to the architecture, the following endpoints are planned:
 
-## 🚀 Deployment
+- `POST /upload` - Upload files (currently `/api/files/upload`)
+- `GET /analyzedInfo/:user_uniq_number` - Retrieve analysis results by unique ID
 
-### Development
+## 🎯 Goals & Roadmap
 
-```bash
-cd node-service
-bun run dev
-```
+### Main Goals
 
-### Production
+- ✅ Express server (Node service)
+- 🔄 Python server (Worker)
+- ⏳ LangChain agent (AI Pipeline)
+- ⏳ Message broker
+- ⏳ Docker integration
+- ⏳ Microservices architecture
+- ✅ Unit testing (Node service)
 
-```bash
-cd node-service
-bun run start
-```
+### Side Quest Goals
+
+- ⏳ Swagger documentation
+- ⏳ Rate limiting
+- ⏳ Idempotency
+- ⏳ Redis caching
+- ⏳ Database indexing
+- ⏳ Load balancing
+
+## 📚 Development
 
 ### Environment Variables
 
-Create a `.env` file in the `node-service` directory:
+Create `.env` in `node-service/`:
 
 ```env
 PORT=3000
-NODE_ENV=production
+NODE_ENV=development
 UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=10485760  # 10MB in bytes
+MAX_FILE_SIZE=10485760  # 10MB
 MAX_FILES=10
 ```
 
-## 🤝 Contributing
+### Running Services
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`bun test`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
-### Development Guidelines
-
-- Write tests for all new functionality
-- Follow TypeScript best practices
-- Use conventional commit messages
-- Update documentation for API changes
-- Ensure 100% test coverage
-
-## 📝 API Documentation
-
-### File Upload Service
-
-The node-service provides a RESTful API for file uploads:
-
-| Method | Endpoint                        | Description             |
-| ------ | ------------------------------- | ----------------------- |
-| POST   | `/api/files/upload`             | Upload CSV/XLSX files   |
-| GET    | `/api/files/download/:filename` | Download uploaded file  |
-| GET    | `/api/files/list`               | List all uploaded files |
-
-### Request/Response Examples
-
-**Upload Files**:
+**Node Service**:
 
 ```bash
-curl -X POST http://localhost:3000/api/files/upload \
-  -F "files=@portfolio1.csv" \
-  -F "files=@portfolio2.xlsx"
+cd node-service
+bun run dev    # Development with watch mode
+bun run start  # Production
 ```
 
-**Download File**:
+**Python Worker**:
 
 ```bash
-curl -X GET http://localhost:3000/api/files/download/uuid-filename.csv
+cd python-worker
+python src/main.py
 ```
-
-**List Files**:
-
-```bash
-curl -X GET http://localhost:3000/api/files/list
-```
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-1. **Service Won't Start**
-
-   - Check if port 3000 is available
-   - Verify all dependencies are installed (`bun install`)
-   - Check for TypeScript compilation errors
-
-2. **File Upload Fails**
-
-   - Verify file type (CSV or XLSX only)
-   - Check file size (under 10MB)
-   - Ensure proper form field name (`files`)
-
-3. **Tests Failing**
-   - Run `bun install` to update dependencies
-   - Check that uploads directory exists
-   - Verify Jest configuration
-
-### Getting Help
-
-- Check the [node-service README](./node-service/README.md) for detailed documentation
-- Review test files for usage examples
-- Check server logs for detailed error messages
-- Open an issue for bugs or feature requests
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🗺️ Roadmap
-
-### Planned Features
-
-- [ ] **Data Processing**: Portfolio analysis algorithms
-- [ ] **Database Integration**: Persistent storage for portfolio data
-- [ ] **User Authentication**: Secure user management
-- [ ] **Frontend Interface**: Web-based file upload interface
-- [ ] **API Documentation**: Interactive API documentation
-- [ ] **Docker Support**: Containerized deployment
-- [ ] **CI/CD Pipeline**: Automated testing and deployment
-
-### Current Status
-
-- ✅ **File Upload Service**: Complete with full testing
-- ✅ **File Validation**: Comprehensive validation system
-- ✅ **Error Handling**: Robust error management
-- ✅ **Documentation**: Complete API and setup documentation
-- 🔄 **Data Processing**: In development
-- ⏳ **Frontend Interface**: Planned
-
-## 📞 Support
-
-For support, questions, or contributions:
-
-- Open an issue on GitHub
-- Check the documentation in `node-service/README.md`
-- Review the test files for usage examples
 
 ---
 
-**Built with ❤️ using TypeScript, Express.js, and Bun**
+**Built with TypeScript, Python, Express.js, and Bun**
