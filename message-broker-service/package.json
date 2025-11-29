@@ -1,0 +1,23 @@
+{
+  "name": "message-broker-service",
+  "version": "1.0.0",
+  "description": "Redis Streams-based message broker for portfolio analyzer",
+  "main": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ioredis": "^5.3.2",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^11.0.0",
+    "typescript": "^5.9.3"
+  }
+}
