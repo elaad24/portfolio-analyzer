@@ -1,0 +1,12 @@
+# Python Portfolio Parser Worker Dependencies
+
+# Data processing
+pandas>=2.0.0
+openpyxl>=3.1.0  # For Excel file support
+
+# Redis client for message queue
+redis>=5.0.0
+
+# Type hints (for Python < 3.9 compatibility)
+typing-extensions>=4.5.0
+

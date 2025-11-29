@@ -51,9 +51,15 @@ portfolio-analyzer/
 │   └── package.json
 ├── python-worker/             # File parser service (Python)
 │   ├── src/
-│   │   ├── parsers/          # Portfolio parser
-│   │   ├── ai_pipeline/      # LangChain integration (planned)
-│   │   └── utils/            # Logger utilities
+│   │   ├── main.py           # Entry point
+│   │   ├── config.py         # Configuration management
+│   │   ├── orchestrator.py   # Pipeline orchestration
+│   │   ├── queue/            # Redis Streams integration
+│   │   ├── parsers/          # File parsing (CSV, Excel)
+│   │   ├── processors/       # Business logic (categorization, transformation, merging)
+│   │   ├── schemas/          # Data models
+│   │   └── utils/            # Utility functions
+│   ├── tests/               # Test suite
 │   └── requirements.txt
 └── project_architecture.md
 ```
@@ -170,22 +176,52 @@ curl -X POST http://localhost:3000/api/files/upload \
 }
 ```
 
-### 🔄 Python Worker (In Progress)
+### ✅ Python Worker (Implemented)
 
-**Status**: Basic structure implemented, not yet integrated
+**Status**: Fully functional portfolio file parser with message queue integration
+
+**Architecture**: Modular, container-ready architecture with clear separation of concerns:
+
+- **`orchestrator.py`** - Main pipeline orchestration
+- **`queue/`** - Redis Streams message queue integration
+- **`parsers/`** - File loading and parsing (CSV, Excel)
+- **`processors/`** - Business logic (categorization, transformation, merging)
+- **`schemas/`** - Data models and output schemas
+- **`config.py`** - Centralized configuration management
 
 **Features**:
 
-- Portfolio parser using pandas
-- Excel/CSV file parsing
-- Data validation utilities
-- Logger setup
+- ✅ Portfolio parser using pandas
+- ✅ Excel/CSV file parsing with encoding detection
+- ✅ Transaction categorization (purchases, sales, dividends, taxes, transfers)
+- ✅ Multi-file chronological merging
+- ✅ Redis Streams message queue integration
+- ✅ Configuration via environment variables
+- ✅ Graceful shutdown handling (container-ready)
+- ✅ Comprehensive error handling and reporting
+- ✅ Data validation utilities
+- ✅ Logger setup (stdout + optional file logging)
 
-**Pending**:
+**Message Queue Integration**:
 
-- Message queue integration
-- Docker volume file access
-- Integration with Node service
+- Consumes messages from Redis Streams
+- Filters for `step="parse"` messages
+- Processes files and publishes results
+- Supports consumer groups for horizontal scaling
+- Automatic message acknowledgment
+
+**Configuration**:
+
+All configuration via environment variables:
+
+- `REDIS_URL` - Redis connection URL
+- `REDIS_STREAM_KEY` - Stream key name
+- `CONSUMER_GROUP` - Consumer group name
+- `CONSUMER_NAME` - Unique consumer name
+- `LOG_LEVEL` - Logging level
+- `LOG_FILE` - Optional file logging path
+
+See `python-worker/README.md` for detailed documentation.
 
 ### ⏳ AI Pipeline (Planned)
 
@@ -355,6 +391,9 @@ For detailed API reference, see `message-broker-service/README.md`
 - **Language**: Python 3.8+
 - **Data Processing**: Pandas
 - **Excel Support**: openpyxl
+- **Message Queue**: Redis Streams (via redis-py)
+- **Architecture**: Modular with clear separation of concerns
+- **Container-Ready**: Environment-based configuration, graceful shutdown
 
 ### Message Broker Service
 
@@ -447,11 +486,11 @@ According to the architecture, the following endpoints are planned:
 
 - ✅ Express server (Node service)
 - ✅ Message broker (Redis Streams)
-- 🔄 Python server (Worker)
+- ✅ Python server (Worker) - Fully implemented with message queue integration
 - ⏳ LangChain agent (AI Pipeline)
 - ⏳ Docker integration
-- ⏳ Microservices architecture
-- ✅ Unit testing (Node service)
+- ✅ Microservices architecture - Event-based communication implemented
+- ✅ Unit testing (Node service, Python worker)
 
 ### Side Quest Goals
 
@@ -485,6 +524,19 @@ CONSUMER_GROUP=portfolio-workers
 CONSUMER_NAME=consumer-1
 ```
 
+**Python Worker** (`.env` in `python-worker/` or environment variables):
+
+```env
+REDIS_URL=redis://localhost:6379
+REDIS_STREAM_KEY=portfolio:jobs
+CONSUMER_GROUP=portfolio-workers
+CONSUMER_NAME=python-worker-1
+BLOCK_TIME=1000                    # Milliseconds to block waiting for messages
+MESSAGE_COUNT=10                    # Max messages per read
+LOG_LEVEL=INFO                      # DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_FILE=python-worker.log          # Optional: file logging path
+```
+
 ### Running Services
 
 **Node Service**:
@@ -507,8 +559,24 @@ bun run start  # Production
 
 ```bash
 cd python-worker
+
+# Set environment variables (or use .env file)
+export REDIS_URL=redis://localhost:6379
+export REDIS_STREAM_KEY=portfolio:jobs
+export CONSUMER_GROUP=portfolio-workers
+export CONSUMER_NAME=python-worker-1
+
+# Run the worker
 python src/main.py
 ```
+
+The worker will:
+
+- Connect to Redis Streams
+- Join the consumer group
+- Listen for messages with `step="parse"`
+- Process portfolio files (CSV/XLSX)
+- Publish results back to the message queue
 
 ---
 

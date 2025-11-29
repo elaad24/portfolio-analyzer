@@ -14,6 +14,16 @@ it will be event-base system that will trigger by the messaging queue.
 
 2. python worker- an python server that its role is to parse the files, validate them and make them ready for the ai request.
 
+   **Architecture**: The python-worker follows a modular architecture:
+   - `src/orchestrator.py` - Main pipeline orchestration
+   - `src/queue/` - Redis Streams message queue integration
+   - `src/parsers/` - File loading and parsing (CSV, Excel)
+   - `src/processors/` - Business logic (categorization, transformation, merging)
+   - `src/schemas/` - Data models and output schemas
+   - `src/config.py` - Centralized configuration management
+   
+   The worker is containerized and configured via environment variables, making it easy to deploy alongside other microservices.
+
 3. python al pipeline - a python server that will executer the proccess and the action of the lang-chain . to parse and analyze the data and provide key intakes .
 
 4. messaging queue - a messaging queue that will orchestrate this entire operation and trigger the services when they needed.
